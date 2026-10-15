@@ -1131,7 +1131,7 @@ export function DiscoveryGrid({
   onOpenMoveCard?: (card: DiscoveryCard) => void;
   /** When set and no folders exist yet, show the dismissible all-unfiled nudge (ux-spec §6.3). */
   folderNudgeStorageKey?: string;
-  /** Category/folder navigation stays available in production, but the Streamlined UI relies on search and scrolling. */
+  /** Category navigation stays available in production. Streamlined UI hides it and keeps search, scrolling, and the folder rail. */
   showBrowseRails?: boolean;
 }) {
   const installedView = tab === "installed";
@@ -1175,9 +1175,11 @@ export function DiscoveryGrid({
     onCreateFolderIn && onRenameFolder && onEditFolder && onMoveFolder && onDeleteFolder,
   );
   // The nested folder tree owns the left rail whenever folders (reserved roots
-  // or user folders) exist for the installed view.
+  // or user folders) exist for the installed view. Streamlined UI hides the
+  // category rail, but company folders still need this rail so they can be
+  // selected, filed into, and deleted.
   const showFolderRail = Boolean(
-    showBrowseRails && folderResult && folderResult.folders.length > 0 && onFolderSelect && folderActionsReady,
+    folderResult && folderResult.folders.length > 0 && onFolderSelect && folderActionsReady,
   );
   const activeProjectFolder = useMemo(() => {
     if (!folderResult || folderSelection === "all" || folderSelection === "unfiled") return null;
@@ -1331,7 +1333,7 @@ export function DiscoveryGrid({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {showBrowseRails && folderResult && onFolderSelect ? (
+          {showFolderRail && folderResult && onFolderSelect ? (
             <div className="w-full md:hidden">
               <FolderChip
                 result={folderResult}
@@ -4133,7 +4135,7 @@ export function CompanySkills() {
   const folderSelection = normalizeFolderSelection(searchParams.get("folder"));
   const browseRailsEnabled = !streamlinedUiEnabled;
   const visibleDiscoveryCategory = browseRailsEnabled ? discoveryCategory : null;
-  const visibleFolderSelection: FolderSelection = browseRailsEnabled ? folderSelection : "all";
+  const visibleFolderSelection: FolderSelection = folderSelection;
 
   function setDiscoveryTab(tab: DiscoveryTab) {
     setSearchParams((current) => withDiscoveryTab(current, tab));
@@ -4217,8 +4219,8 @@ export function CompanySkills() {
     if (!streamlinedUiEnabled) return;
     const legacyTab = searchParams.get("tab");
     const hasLegacyDiscoveryTab = isDiscovery && ["all", "catalog", "bundled"].includes(legacyTab ?? "");
-    const hasRetiredBrowseFilter = isDiscovery && (searchParams.has("category") || searchParams.has("folder"));
-    if (!searchParams.has("view") && !hasLegacyDiscoveryTab && !hasRetiredBrowseFilter) return;
+    const hasRetiredCategory = isDiscovery && searchParams.has("category");
+    if (!searchParams.has("view") && !hasLegacyDiscoveryTab && !hasRetiredCategory) return;
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -4226,10 +4228,7 @@ export function CompanySkills() {
           next.set("tab", "discover");
         }
         next.delete("view");
-        if (isDiscovery) {
-          next.delete("category");
-          next.delete("folder");
-        }
+        if (isDiscovery) next.delete("category");
         return next;
       },
       { replace: true },
